@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Responsive Spinning Logo</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/addons/p5.sound.min.js"></script>
+</head>
+<body>
+    <div style="text-align: center; margin-top: 20px;">
+        <audio id="audioPlayer" controls>
+            <source src="song.mp3" type="audio/mpeg">
+            Your browser does not support the audio element.
+        </audio>
+    </div>
+    <script>
+        let amp, song, logo;
+        let particles = [];
+        let hueIndex = 0;
+        let hueChangeInterval = 20;
+        let isSpinning = false;
+        let rotationAngle = 0;
+        let spinDirection = 1;
+        let spinStartTime = 0;
+        let spinDuration = 500;
+        let peakThreshold = 0.25;
+
+        function preload() {
+            logo = loadImage('ncz.png'); // Replace with your logo file path
+            song = loadSound('song.mp3'); // Replace with your audio file path
+        }
+
+        function setup() {
+            createCanvas(800, 800);
+            colorMode(HSB, 360, 100, 100);
+            amp = new p5.Amplitude();
+            song.play(); // Start playing the audio
+        }
+
+        function draw() {
+            background(120, 100, 100); // Chroma key background color (bright green)
+
+            // Update hue index for rainbow effect
+            if (frameCount % hueChangeInterval == 0) {
+                hueIndex = (hueIndex + 1) % 15;
+            }
+
+            let currentHue = map(hueIndex, 0, 14, 0, 360);
+            if (currentHue > 100 && currentHue < 140) {
+                currentHue = (currentHue + 40) % 360;
+            }
+
+            let level = amp.getLevel();
+            let scale = map(level, 0, 0.5, 100, 600);
+
+            // Check for peak level to trigger spin
+            if (level > peakThreshold && !isSpinning) {
+                startSpin();
+            }
+
+            // Handle spin update
+            if (isSpinning) {
+                updateSpin();
+            }
+
+            // Draw the spinning logo
+            push();
+            translate(width / 2, height / 2);
+            rotate(radians(rotationAngle));
+            imageMode(CENTER);
+            image(logo, 0, 0, scale, scale);
+            pop();
+
+            // Create particles based on audio level
+            let numParticles = int(map(level, 0, 0.5, 0, 10));
+            for (let i = 0; i < numParticles; i++) {
+                particles.push(new Particle(width / 2, height / 2, currentHue));
+            }
+
+            // Update and display particles
+            for (let i = particles.length - 1; i >= 0; i--) {
+                let p = particles[i];
+                p.update();
+                p.display();
+                if (p.isFinished()) {
+                    particles.splice(i, 1);
+                }
+            }
+        }
+
+        function startSpin() {
+            isSpinning = true;
+            spinStartTime = millis();
+            rotationAngle = 0;
+            spinDirection = random() > 0.5 ? 1 : -1;
+        }
+
+        function updateSpin() {
+            let elapsedTime = millis() - spinStartTime;
+            let spinProgress = map(elapsedTime, 0, spinDuration, 0, 360);
+            rotationAngle = spinProgress * spinDirection;
+
+            if (elapsedTime >= spinDuration) {
+                isSpinning = false;
+                rotationAngle = 0;
+            }
+        }
+
+        class Particle {
+            constructor(x, y, hue) {
+                this.position = createVector(x, y);
+                this.velocity = p5.Vector.random2D().mult(random(2, 5));
+                this.lifespan = 255;
+                this.hue = hue;
+            }
+
+            update() {
+                this.position.add(this.velocity);
+                this.lifespan -= 4;
+            }
+
+            display() {
+                noStroke();
+                fill(this.hue, 100, 100, this.lifespan / 255 * 100);
+                ellipse(this.position.x, this.position.y, 8, 8);
+            }
+
+            isFinished() {
+                return this.lifespan < 0;
+            }
+        }
+
+        // Allow audio controls to manage playback
+        document.getElementById('audioPlayer').addEventListener('play', () => {
+            if (!song.isPlaying()) {
+                song.play();
+            }
+        });
+
+        document.getElementById('audioPlayer').addEventListener('pause', () => {
+            if (song.isPlaying()) {
+                song.pause();
+            }
+        });
+    </script>
+</body>
+</html>
